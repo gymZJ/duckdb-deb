@@ -1,0 +1,9 @@
+Package: duckdb
+Section: database
+Priority: optional
+Maintainer: coplo <dayearnew@gmail.com>
+Homepage: https://duckdb.org/
+Depends: libc6, libgcc-s1, libstdc++6
+Description: In-process analytical SQL database CLI
+ DuckDB is an in-process analytical database system. This package provides
+ the official DuckDB command-line interface from the upstream Linux release.
