@@ -25,13 +25,21 @@ write_control() {
 rm -rf work dist
 mkdir -p work dist
 
-asset="duckdb_cli-linux-${UPSTREAM_ARCH}.zip"
-archive="work/${asset}"
 extract_dir="work/extract"
 package_root="work/pkg"
 
 release_json="work/release.json"
 gh api "repos/${UPSTREAM_REPO}/releases/tags/${TAG}" > "${release_json}"
+asset="$(jq -r --arg arch "${UPSTREAM_ARCH}" '
+  [.assets[].name
+   | select(. == "duckdb-cli-linux-\($arch).tar.gz" or . == "duckdb_cli-linux-\($arch).zip")]
+  | first // empty
+' "${release_json}")"
+if [[ -z "${asset}" ]]; then
+  echo "No DuckDB Linux CLI release asset for ${UPSTREAM_ARCH} at ${TAG}" >&2
+  exit 1
+fi
+archive="work/${asset}"
 digest="$(jq -r --arg asset "${asset}" '.assets[] | select(.name == $asset) | .digest' "${release_json}")"
 test -n "${digest}"
 test "${digest}" != "null"
@@ -44,7 +52,10 @@ gh release download "${TAG}" --repo "${UPSTREAM_REPO}" --pattern "${asset}" --di
 printf '%s  %s\n' "${digest#sha256:}" "${archive}" | sha256sum --check --strict
 
 mkdir -p "${extract_dir}" "${package_root}/DEBIAN" "${package_root}/usr/bin" "${package_root}/usr/share/doc/${PACKAGE}"
-unzip -q "${archive}" -d "${extract_dir}"
+case "${asset}" in
+  *.tar.gz) tar -xzf "${archive}" -C "${extract_dir}" ;;
+  *.zip) unzip -q "${archive}" -d "${extract_dir}" ;;
+esac
 
 duckdb_bin="$(find "${extract_dir}" -type f -name duckdb -print -quit)"
 test -n "${duckdb_bin}"
